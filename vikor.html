@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VIKOR Калькулятор</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 min-h-screen flex flex-col p-4 md:p-8">
+
+    <!-- Основной контейнер -->
+    <div class="max-w-2xl lg:max-w-3xl mx-auto space-y-6 w-full flex-1">
+
+        <!-- Заголовок -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200 text-center md:text-left">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Многокритериальная оптимизация и компромиссное решение</h1>
+            <p class="text-gray-600 text-sm md:text-base">Измените и добавьте данные (критерии и альтернативы) под свою задачу. Нажмите "Рассчитать". Получите расчет лучшей альтернативы. Расчеты делаются на основе метода <span class="text-green-600 font-semibold">VIKOR.</span></p>
+        </div>
+
+        <!-- Блок 1: Критерии -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-400">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+                Критерии оценки
+            </h2>
+            
+            <div class="overflow-x-auto -mx-5 px-5 md:mx-0 md:px-0 pb-2">
+                <table class="w-full text-sm min-w-[500px]" id="criteria-table">
+                    <thead>
+                        <tr>
+                            <th class="p-2 text-xs font-semibold text-gray-600 bg-gray-200 border-b border-gray-200 text-left rounded-tl-lg w-1/3">Название</th>
+                            <th class="p-2 text-xs font-semibold text-gray-600 bg-gray-200 border-b border-gray-200 text-center w-12">Вес</th>
+                            <th class="p-2 text-xs font-semibold text-gray-600 bg-gray-200 border-b border-gray-200 text-center w-32">Тип</th>
+                            <th class="p-2 w-10 bg-gray-200 border-b border-gray-200 rounded-tr-lg"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="criteria-tbody" class="divide-y divide-gray-100">
+                        <!-- Заполняется JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <button onclick="addCriterion()" class="mt-3 text-blue-600 hover:text-blue-800 text-sm font-semibold flex items-center gap-1 transition px-1">
+                <span class="text-lg">+</span> Добавить критерий
+            </button>
+            
+            <p id="weight-warning" class="text-red-600 text-xs mt-3 hidden font-medium bg-red-50 p-2 rounded-lg border border-red-100 transition-all">
+                ⚠️ Сумма весов не равна 1. Приложение автоматически нормализует их при расчете.
+            </p>
+        </div>
+
+        <!-- Блок 2: Альтернативы -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-400">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+                Варианты (Альтернативы)
+            </h2>
+            <div class="overflow-x-auto -mx-5 px-5 md:mx-0 md:px-0 pb-2">
+                <table class="w-full text-sm min-w-[500px]" id="alternatives-table">
+                    <thead id="alt-thead"></thead>
+                    <tbody id="alt-tbody" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+            <button onclick="addAlternative()" class="mt-3 text-green-600 hover:text-green-800 text-sm font-semibold flex items-center gap-1 transition px-1">
+                <span class="text-lg">+</span> Добавить вариант
+            </button>
+            <button onclick="clearAllData()" class="mt-3 ml-4 text-red-500 hover:text-red-700 text-sm font-semibold flex items-center gap-1 transition px-1">
+                <span class="text-lg">🗑️</span> Сбросить все данные
+            </button>
+        </div>
+
+        <!-- Блок 3: Настройки расчета и кнопка -->
+        <div class="bg-blue-50 p-5 md:p-6 rounded-2xl shadow-sm border border-blue-200 space-y-4">
+            <h2 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+                <span>⚙️</span> Настройки расчета
+            </h2>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <label class="font-semibold text-blue-900 whitespace-nowrap text-sm">Параметр стратегии (v):</label>
+                <input type="number" id="v-param" value="0.5" step="0.1" min="0" max="1" class="w-full sm:w-24 p-2 border border-blue-300 rounded-lg text-center font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                <span class="text-xs sm:text-sm text-blue-700 flex-1">0.5 = баланс. 0.9 = упор на минимизацию рисков.</span>
+            </div>
+            
+            <button onclick="calculateVIKOR()" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg shadow-blue-200 transition transform active:scale-[0.98] text-lg flex items-center justify-center gap-2 mt-2">
+                <span>🚀</span> Рассчитать рейтинг вариантов (альтернатив)
+            </button>
+        </div>
+
+        <!-- Блок 4: Результаты (Карточки) -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span class="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+                Результаты ранжирования
+            </h2>
+            <div id="results-container" class="space-y-3">
+                <div class="p-6 text-center text-gray-500 italic bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    Нажмите кнопку "Рассчитать", чтобы увидеть результаты здесь
+                </div>
+            </div>
+        </div>
+
+        <!-- Блок 5: График -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4">📈 Визуализация индекса Q</h2>
+            <div class="relative h-72 md:h-96 lg:h-[450px] w-full">
+                <canvas id="vikorChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Блок 6: Условия компромисса -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
+            <h2 class="text-lg font-bold text-gray-800 mb-3">✅ Проверка условий компромисса</h2>
+            <ul id="conditions-list" class="text-sm text-gray-700 space-y-3">
+                <li class="text-gray-500 italic flex items-center gap-2">
+                    <span>💡</span> Результаты и проверка условий появятся здесь после расчета.
+                </li>
+            </ul>
+        </div>
+
+        <!-- Блок 7: Скачать Excel для проверки -->
+        <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-5 md:p-6 rounded-2xl shadow-sm border border-green-200">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm">📥</span>
+                Проверка расчетов в Excel
+            </h2>
+            <p class="text-gray-700 text-sm mb-4">
+                Хотите убедиться в правильности расчетов? Скачайте Excel-файл с реализацией метода VIKOR. 
+                Введите свои данные и сравните результаты с онлайн-калькулятором.
+            </p>
+            <div class="bg-white p-4 rounded-xl border border-green-200 space-y-3">
+                <div class="flex items-start gap-3 text-sm text-gray-600">
+                    <span class="text-green-600 text-xl">✓</span>
+                    <div>
+                        <p class="font-semibold text-gray-800">Что внутри файла:</p>
+                        <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
+                            <li>Автоматический расчет индексов S, R и Q</li>
+                            <li>Визуализация результатов (диаграммы)</li>
+                            <li>Проверка условий компромисса</li>
+                            <li>Подробные формулы для изучения</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <a href="vikor.xlsx" download="vikor.xlsx" class="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-[0.98]">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Скачать Excel-файл (vikor.xlsx)
+                    </a>
+                    <p class="text-xs text-gray-500 text-center mt-2">
+                        Формат: .xlsx | Размер: ~18 KB | Совместим: Excel 2010+, Google Sheets, LibreOffice
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Блок 8: Описание метода VIKOR (ПОЛНАЯ ВЕРСИЯ) -->
+        <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span class="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-sm">📖</span>
+                О методе VIKOR
+            </h2>
+            
+            <div class="prose prose-sm max-w-none text-gray-700 space-y-4">
+                <p>
+                    <strong>VIKOR</strong> (серб. VlseKriterijumska Optimizacija I Kompromisno Resenje) — 
+                    метод многокритериальной оптимизации для поиска компромиссного решения среди множества альтернатив 
+                    с противоречивыми критериями.
+                </p>
+                
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <h3 class="font-bold text-gray-900 mb-2">🔑 Ключевые понятия:</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex gap-2">
+                            <span class="font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">S</span>
+                            <span><strong>Групповая полезность</strong> — взвешенная сумма отклонений от идеала. Показывает общую близость к оптимальному решению.</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="font-mono bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">R</span>
+                            <span><strong>Индивидуальный риск</strong> — максимальное взвешенное отклонение по одному критерию. Показывает "слабое звено" альтернативы.</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="font-mono bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">Q</span>
+                            <span><strong>Индекс компромисса</strong> — итоговый показатель, объединяющий S и R с учетом стратегии (v). Чем меньше Q, тем лучше альтернатива.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- ВОССТАНОВЛЕНО: Формула расчета -->
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">📐 Формула расчета Q:</h3>
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 font-mono text-xs md:text-sm text-center overflow-x-auto">
+                        Q<sub>i</sub> = v·(S<sub>i</sub>−S*)/(S⁻−S*) + (1−v)·(R<sub>i</sub>−R*)/(R⁻−R*)
+                    </div>
+                    <p class="text-xs text-gray-600 mt-2">
+                        где v — вес стратегии (обычно 0.5), S* и R* — лучшие значения, S⁻ и R⁻ — худшие
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-2">✅ Условия компромисса:</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm">
+                        <li><strong>Приемлемое преимущество:</strong> Q₂ − Q₁ ≥ 1/(m−1), где m — число альтернатив</li>
+                        <li><strong>Приемлемая устойчивость:</strong> Лучшая альтернатива по Q должна быть лучшей по S или R</li>
+                    </ol>
+                </div>
+
+                <!-- ВОССТАНОВЛЕНО: Полезные ссылки -->
+                <div class="border-t border-gray-200 pt-4 mt-4">
+                    <h3 class="font-bold text-gray-900 mb-2">📚 Полезные ссылки:</h3>
+                    <ul class="space-y-1 text-sm">
+                        <li>
+                            <a href="https://en.wikipedia.org/wiki/VIKOR" target="_blank" rel="noopener noreferrer" 
+                               class="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1">
+                                Википедия: VIKOR method
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.sciencedirect.com/topics/engineering/vikor-method" target="_blank" rel="noopener noreferrer" 
+                               class="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1">
+                                ScienceDirect: VIKOR Method
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="text-blue-600 hover:text-blue-800 underline">
+                                Примеры применения в логистике и управлении цепями поставок
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Нижний колонтитул -->
+    <footer class="w-full bg-blue-900 text-blue-100 py-8 mt-8">
+        <div class="max-w-2xl lg:max-w-3xl mx-auto px-4 text-center">
+            <p class="font-bold text-white text-lg tracking-wide">Многокритериальная оптимизация и компромиссное решение по методу VIKOR</p>
+            <p class="font-bold text-white text-lg tracking-wide">Контакты для связи и внедрения в Ваши проекты:</p>
+            <p class="text-xs mt-2 text-blue-300">Смоленышев Олег; smolenishev@otter-finance.ru; +7 916 014 37 70</p>
+            <p class="text-xs mt-2 text-blue-300">© 2026</p>
+        </div>
+    </footer>
+
+    <script>
+        let myChart = null;
+        let lastResults = null;
+
+        const defaultCriteria = [
+            { name: "Цена (у.е.)", weight: 0.5, type: "min" },
+            { name: "Срок (дни)", weight: 0.3, type: "min" },
+            { name: "Надежность (%)", weight: 0.2, type: "max" }
+        ];
+
+        const defaultAlternatives = [
+            { name: "Поставщик А", values: [1000, 45, 95] },
+            { name: "Поставщик Б", values: [1200, 30, 99] },
+            { name: "Поставщик В", values: [900, 60, 85] }
+        ];
+
+        // ==========================================
+        // ФУНКЦИИ LOCALSTORAGE
+        // ==========================================
+
+        function saveState() {
+            const state = {
+                v: document.getElementById('v-param').value,
+                criteria: [],
+                alternatives: []
+            };
+
+            document.querySelectorAll('#criteria-tbody tr').forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                if (inputs.length >= 3) {
+                    state.criteria.push({
+                        name: inputs[0].value,
+                        weight: inputs[1].value,
+                        type: inputs[2].value
+                    });
+                }
+            });
+
+            document.querySelectorAll('#alt-tbody tr').forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                if (inputs.length >= 1) {
+                    const values = [];
+                    for (let i = 1; i < inputs.length; i++) {
+                        values.push(inputs[i].value);
+                    }
+                    state.alternatives.push({
+                        name: inputs[0].value,
+                        values: values
+                    });
+                }
+            });
+
+            localStorage.setItem('vikorCalculatorState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('vikorCalculatorState');
+            if (!saved) return false;
+
+            try {
+                const state = JSON.parse(saved);
+                if (state.v) document.getElementById('v-param').value = state.v;
+
+                const criteriaTbody = document.getElementById('criteria-tbody');
+                criteriaTbody.innerHTML = '';
+                state.criteria.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="p-2"><input type="text" value="${c.name}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>
+                        <td class="p-2"><input type="number" step="0.1" value="${c.weight}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none weight-input"></td>
+                        <td class="p-2">
+                            <select class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none type-select bg-white">
+                                <option value="min" ${c.type === 'min' ? 'selected' : ''}>Минимум</option>
+                                <option value="max" ${c.type === 'max' ? 'selected' : ''}>Максимум</option>
+                            </select>
+                        </td>
+                        <td class="p-2 text-center"><button onclick="removeCriterion(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>
+                    `;
+                    criteriaTbody.appendChild(tr);
+                });
+
+                const altTbody = document.getElementById('alt-tbody');
+                altTbody.innerHTML = '';
+                state.alternatives.forEach(alt => {
+                    const tr = document.createElement('tr');
+                    tr.className = "group hover:bg-gray-50 transition";
+                    let cellsHTML = `<td class="p-2 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-gray-100"><input type="text" value="${alt.name}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>`;
+                    alt.values.forEach(val => {
+                        cellsHTML += `<td class="p-2"><input type="number" step="any" value="${val}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none alt-value"></td>`;
+                    });
+                    cellsHTML += `<td class="p-2 text-center sticky right-0 bg-white group-hover:bg-gray-50 z-10 border-l border-gray-100"><button onclick="removeAlternative(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>`;
+                    tr.innerHTML = cellsHTML;
+                    altTbody.appendChild(tr);
+                });
+
+                return true;
+            } catch (e) {
+                console.error("Ошибка загрузки данных:", e);
+                return false;
+            }
+        }
+
+        function clearAllData() {
+            if (confirm("Вы уверены? Все введенные данные будут удалены и заменены на стандартные.")) {
+                localStorage.removeItem('vikorCalculatorState');
+                location.reload();
+            }
+        }
+
+        // ==========================================
+        // ОСНОВНАЯ ЛОГИКА
+        // ==========================================
+
+        window.onload = function() {
+            if (!loadState()) {
+                renderDefaultTable();
+            }
+            updateAltHeaders();
+            checkWeights();
+        };
+
+        function renderDefaultTable() {
+            const criteriaTbody = document.getElementById('criteria-tbody');
+            criteriaTbody.innerHTML = '';
+            defaultCriteria.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2"><input type="text" value="${c.name}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>
+                    <td class="p-2"><input type="number" step="0.1" value="${c.weight}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none weight-input"></td>
+                    <td class="p-2">
+                        <select class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none type-select bg-white">
+                            <option value="min" ${c.type === 'min' ? 'selected' : ''}>Минимум</option>
+                            <option value="max" ${c.type === 'max' ? 'selected' : ''}>Максимум</option>
+                        </select>
+                    </td>
+                    <td class="p-2 text-center"><button onclick="removeCriterion(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>
+                `;
+                criteriaTbody.appendChild(tr);
+            });
+
+            const altTbody = document.getElementById('alt-tbody');
+            altTbody.innerHTML = '';
+            defaultAlternatives.forEach(alt => {
+                const tr = document.createElement('tr');
+                tr.className = "group hover:bg-gray-50 transition";
+                let cellsHTML = `<td class="p-2 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-gray-100"><input type="text" value="${alt.name}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>`;
+                alt.values.forEach(val => {
+                    cellsHTML += `<td class="p-2"><input type="number" step="any" value="${val}" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none alt-value"></td>`;
+                });
+                cellsHTML += `<td class="p-2 text-center sticky right-0 bg-white group-hover:bg-gray-50 z-10 border-l border-gray-100"><button onclick="removeAlternative(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>`;
+                tr.innerHTML = cellsHTML;
+                altTbody.appendChild(tr);
+            });
+        }
+
+        function updateAltHeaders() {
+            const criteriaNames = Array.from(document.querySelectorAll('#criteria-tbody input[type="text"]')).map(input => input.value || 'Критерий');
+            const numCriteria = criteriaNames.length;
+            
+            const thead = document.getElementById('alt-thead');
+            let headerHTML = '<tr><th class="p-2 text-xs font-semibold text-gray-600 bg-gray-200 border-b border-gray-200 text-left rounded-tl-lg w-1/4 sticky left-0 bg-gray-200 z-10 shadow-sm">Вариант</th>';
+            criteriaNames.forEach((name, index) => {
+                const roundedClass = index === numCriteria - 1 ? 'rounded-tr-lg' : '';
+                headerHTML += `<th class="p-2 text-xs font-semibold text-gray-600 bg-gray-200 border-b border-gray-200 text-center ${roundedClass}">${name}</th>`;
+            });
+            headerHTML += '<th class="p-2 w-10 bg-gray-200 border-b border-gray-200 sticky right-0 bg-gray-200 z-10 shadow-sm"></th></tr>';
+            thead.innerHTML = headerHTML;
+        }
+
+        function checkWeights() {
+            const weightInputs = document.querySelectorAll('.weight-input');
+            let totalWeight = 0;
+            weightInputs.forEach(input => {
+                const val = parseFloat(input.value);
+                totalWeight += isNaN(val) ? 0 : val;
+            });
+            
+            const warningEl = document.getElementById('weight-warning');
+            if (Math.abs(totalWeight - 1.0) > 0.01) {
+                warningEl.classList.remove('hidden');
+                warningEl.innerHTML = `⚠️ Сумма весов равна <b>${totalWeight.toFixed(2)}</b>. Приложение автоматически нормализует их при расчете.`;
+            } else {
+                warningEl.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('criteria-tbody').addEventListener('input', function(e) {
+            if (e.target.classList.contains('weight-input')) checkWeights();
+            if (e.target.type === 'text' || e.target.classList.contains('weight-input') || e.target.classList.contains('type-select')) {
+                updateAltHeaders();
+                saveState();
+            }
+        });
+
+        document.getElementById('alt-tbody').addEventListener('input', saveState);
+        document.getElementById('v-param').addEventListener('input', saveState);
+
+        function addCriterion() {
+            const tbody = document.getElementById('criteria-tbody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-2"><input type="text" value="Новый критерий" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>
+                <td class="p-2"><input type="number" step="0.1" value="0.1" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none weight-input"></td>
+                <td class="p-2">
+                    <select class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none type-select bg-white">
+                        <option value="min">Минимум</option>
+                        <option value="max">Максимум</option>
+                    </select>
+                </td>
+                <td class="p-2 text-center"><button onclick="removeCriterion(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+            updateAltHeaders();
+            checkWeights();
+            saveState();
+        }
+
+        function removeCriterion(btn) {
+            const tbody = document.getElementById('criteria-tbody');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+                updateAltHeaders();
+                checkWeights();
+                saveState();
+            } else {
+                alert("Должен остаться хотя бы один критерий!");
+            }
+        }
+
+        function addAlternative() {
+            const altTbody = document.getElementById('alt-tbody');
+            const numCriteria = document.querySelectorAll('#criteria-tbody tr').length;
+            const tr = document.createElement('tr');
+            tr.className = "group hover:bg-gray-50 transition";
+            let cellsHTML = `<td class="p-2 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-gray-100"><input type="text" value="Новый вариант" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none font-medium"></td>`;
+            for (let j = 0; j < numCriteria; j++) {
+                cellsHTML += `<td class="p-2"><input type="number" step="any" value="0" class="w-full p-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-blue-500 outline-none alt-value"></td>`;
+            }
+            cellsHTML += `<td class="p-2 text-center sticky right-0 bg-white group-hover:bg-gray-50 z-10 border-l border-gray-100"><button onclick="removeAlternative(this)" class="text-red-400 hover:text-red-600 font-bold text-xl leading-none">✕</button></td>`;
+            tr.innerHTML = cellsHTML;
+            altTbody.appendChild(tr);
+            saveState();
+        }
+
+        function removeAlternative(btn) {
+            const tbody = document.getElementById('alt-tbody');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+                saveState();
+            } else {
+                alert("Должен остаться хотя бы один вариант!");
+            }
+        }
+
+        function calculateVIKOR() {
+            const critRows = document.querySelectorAll('#criteria-tbody tr');
+            let criteria = [];
+            let totalWeight = 0;
+            
+            critRows.forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                if (inputs.length >= 3) {
+                    let w = parseFloat(inputs[1].value);
+                    if (isNaN(w)) w = 0;
+                    totalWeight += w;
+                    criteria.push({ name: inputs[0].value, weight: w, type: inputs[2].value });
+                }
+            });
+
+            if (totalWeight > 0 && Math.abs(totalWeight - 1.0) > 0.01) {
+                document.getElementById('weight-warning').classList.remove('hidden');
+                criteria = criteria.map(c => ({ ...c, weight: c.weight / totalWeight }));
+            } else {
+                document.getElementById('weight-warning').classList.add('hidden');
+            }
+
+            const altRows = document.querySelectorAll('#alt-tbody tr');
+            let alternatives = [];
+            altRows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                let name = inputs[0].value;
+                let values = [];
+                for (let i = 1; i < inputs.length; i++) {
+                    let val = parseFloat(inputs[i].value);
+                    if (isNaN(val)) val = 0;
+                    values.push(val);
+                }
+                alternatives.push({ name, values });
+            });
+
+            if (alternatives.length === 0) {
+                alert("Добавьте хотя бы один вариант!");
+                return;
+            }
+
+            const v = parseFloat(document.getElementById('v-param').value) || 0.5;
+            const numCrit = criteria.length;
+
+            let fStar = new Array(numCrit).fill(0);
+            let fMinus = new Array(numCrit).fill(0);
+
+            for (let j = 0; j < numCrit; j++) {
+                let vals = alternatives.map(a => a.values[j]);
+                if (criteria[j].type === 'min') {
+                    fStar[j] = Math.min(...vals);
+                    fMinus[j] = Math.max(...vals);
+                } else {
+                    fStar[j] = Math.max(...vals);
+                    fMinus[j] = Math.min(...vals);
+                }
+            }
+
+            let results = alternatives.map(alt => {
+                let S = 0, R = 0;
+                for (let j = 0; j < numCrit; j++) {
+                    let diff = Math.abs(fStar[j] - alt.values[j]);
+                    let range = Math.abs(fStar[j] - fMinus[j]);
+                    let normalized = range === 0 ? 0 : (diff / range);
+                    let weighted = normalized * criteria[j].weight;
+                    S += weighted;
+                    R = Math.max(R, weighted);
+                }
+                return { name: alt.name, S, R };
+            });
+
+            let S_vals = results.map(r => r.S);
+            let R_vals = results.map(r => r.R);
+            let S_star = Math.min(...S_vals), S_minus = Math.max(...S_vals);
+            let R_star = Math.min(...R_vals), R_minus = Math.max(...R_vals);
+
+            results.forEach(r => {
+                let s_norm = Math.abs(S_minus - S_star) < 0.0001 ? 0 : (r.S - S_star) / (S_minus - S_star);
+                let r_norm = Math.abs(R_minus - R_star) < 0.0001 ? 0 : (r.R - R_star) / (R_minus - R_star);
+                r.Q = v * s_norm + (1 - v) * r_norm;
+                r.Q = Math.max(0, r.Q);
+            });
+
+            results.sort((a, b) => a.Q - b.Q);
+
+            let condition1 = results.length >= 2 ? (results[1].Q - results[0].Q) >= (1 / (results.length - 1)) : true;
+            let sortedByS = [...results].sort((a, b) => a.S - b.S);
+            let sortedByR = [...results].sort((a, b) => a.R - b.R);
+            let condition2 = (results[0].name === sortedByS[0].name || results[0].name === sortedByR[0].name);
+
+            renderResults(results, condition1, condition2);
+        }
+
+        function renderResults(results, cond1, cond2) {
+            lastResults = results;
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+
+            results.forEach((r, index) => {
+                const isWinner = index === 0;
+                const cardClass = isWinner ? 'bg-green-50 border-green-300 ring-1 ring-green-200' : 'bg-white border-gray-200 hover:border-blue-300';
+                const qColor = isWinner ? 'text-green-700' : 'text-blue-700';
+                const rankIcon = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `#${index + 1}`));
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border ${cardClass} transition-all duration-200`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 mb-3 pb-2 border-b ${isWinner ? 'border-green-200' : 'border-gray-100'}">
+                        <span class="text-3xl">${rankIcon}</span>
+                        <span class="text-lg font-bold text-gray-800">${r.name}</span>
+                    </div>
+                    <div class="space-y-3 text-sm md:text-base">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">S (Групповая полезность):</span>
+                            <span class="font-mono font-semibold text-gray-800 bg-gray-100 px-2 py-1 rounded">${r.S.toFixed(4)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">R (Индивидуальный риск):</span>
+                            <span class="font-mono font-semibold text-gray-800 bg-gray-100 px-2 py-1 rounded">${r.R.toFixed(4)}</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-2 mt-2 border-t ${isWinner ? 'border-green-200' : 'border-gray-200'}">
+                            <span class="text-gray-800 font-bold">Q (Итоговый индекс VIKOR):</span>
+                            <span class="font-mono font-bold ${qColor} text-xl bg-white px-2 py-1 rounded border ${isWinner ? 'border-green-200' : 'border-blue-100'}">${r.Q.toFixed(4)}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            const condList = document.getElementById('conditions-list');
+            let html = '';
+            
+            if (cond1) {
+                html += `<li class="text-green-700 flex items-start gap-3"><span class="text-xl mt-0.5">✅</span> <div><b>Условие 1 (Преимущество) выполнено:</b><br class="md:hidden"> Разрыв между 1-м и 2-м местом статистически значим.</div></li>`;
+            } else {
+                html += `<li class="text-yellow-700 flex items-start gap-3"><span class="text-xl mt-0.5">⚠️</span> <div><b>Условие 1 не выполнено:</b><br class="md:hidden"> Разрыв между 1-м и 2-м местом мал. Рассмотрите топ-2 варианта как равноценные.</div></li>`;
+            }
+
+            if (cond2) {
+                html += `<li class="text-green-700 flex items-start gap-3"><span class="text-xl mt-0.5">✅</span> <div><b>Условие 2 (Устойчивость) выполнено:</b><br class="md:hidden"> Лучший вариант по Q также лучший по S или R.</div></li>`;
+            } else {
+                html += `<li class="text-yellow-700 flex items-start gap-3"><span class="text-xl mt-0.5">⚠️</span> <div><b>Условие 2 не выполнено:</b><br class="md:hidden"> Лучший по Q не является лучшим по S или R. Требуется внимание.</div></li>`;
+            }
+            
+            if (cond1 && cond2) {
+                html += `<li class="mt-4 p-3 bg-green-100 text-green-900 rounded-xl font-bold text-center border border-green-200">🏆 Вариант "${results[0].name}" — строгое компромиссное решение!</li>`;
+            } else {
+                html += `<li class="mt-4 p-3 bg-yellow-100 text-yellow-900 rounded-xl font-bold text-center border border-yellow-200">🤝 Рекомендуется рассмотреть множество компромиссных решений.</li>`;
+            }
+            condList.innerHTML = html;
+
+            updateChart(results);
+        }
+
+        const dataLabelsPlugin = {
+            id: 'dataLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                chart.data.datasets.forEach((dataset, i) => {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((bar, index) => {
+                        const value = dataset.data[index];
+                        ctx.fillStyle = '#374151';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = 'bold 12px sans-serif';
+                        ctx.fillText(value.toFixed(4), bar.x, bar.y - 5);
+                    });
+                });
+            }
+        };
+        Chart.register(dataLabelsPlugin);
+
+        function updateChart(results) {
+            const ctx = document.getElementById('vikorChart').getContext('2d');
+            const labels = results.map(r => r.name);
+            const dataQ = results.map(r => r.Q);
+            const colors = results.map((_, i) => i === 0 ? 'rgba(34, 197, 94, 0.8)' : 'rgba(59, 130, 246, 0.6)');
+            const borderColors = results.map((_, i) => i === 0 ? 'rgba(34, 197, 94, 1)' : 'rgba(59, 130, 246, 1)');
+
+            if (myChart) myChart.destroy();
+
+            const isDesktop = window.innerWidth >= 1024;
+            const isTablet = window.innerWidth >= 768;
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Индекс Q',
+                        data: dataQ,
+                        backgroundColor: colors,
+                        borderColor: borderColors,
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: { display: true, text: 'Значение Q (чем меньше, тем лучше)', font: { weight: 'bold', size: isDesktop ? 14 : 12 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { font: { size: isDesktop ? 12 : 10 } }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { font: { size: isDesktop ? 13 : 11 }, maxRotation: isTablet ? 0 : 45, minRotation: isTablet ? 0 : 45 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            callbacks: { label: (context) => `Q = ${context.parsed.y.toFixed(4)}`, title: (context) => context[0].label }
+                        }
+                    }
+                }
+            });
+        }
+
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                if (myChart && lastResults) {
+                    updateChart(lastResults);
+                }
+            }, 250);
+        });
+    </script>
+</body>
+</html>
